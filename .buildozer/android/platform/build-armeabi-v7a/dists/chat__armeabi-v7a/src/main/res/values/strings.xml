@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Protected chat</string>
-    <string name="private_version">1593802636.4450974</string>
+    <string name="private_version">1593803237.0423675</string>
     <string name="presplash_color">#000000</string>
     <string name="urlScheme">kivy</string>
 </resources>
