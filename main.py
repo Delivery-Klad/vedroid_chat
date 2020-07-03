@@ -7,8 +7,6 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.popup import Popup
 from kivy.config import Config
 from kivy.uix.label import Label
-import os
-import psycopg2
 import bcrypt
 
 Config.set('graphics', 'resizable', 1)
