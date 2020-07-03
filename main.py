@@ -9,6 +9,7 @@ from kivy.config import Config
 from kivy.uix.label import Label
 import psycopg2
 import bcrypt
+import rsa
 
 Config.set('graphics', 'resizable', 1)
 Config.set('graphics', 'width', 300)
