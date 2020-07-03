@@ -7,14 +7,13 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.popup import Popup
 from kivy.config import Config
 from kivy.uix.label import Label
-import os
 import rsa
 import psycopg2
 import bcrypt
 
 Config.set('graphics', 'resizable', 1)
-Config.set('graphics', 'width', 300)
-Config.set('graphics', 'height', 600)
+# Config.set('graphics', 'width', 300)
+# Config.set('graphics', 'height', 600)
 user_login = ''
 user_id = ''
 private_key = rsa.PrivateKey(1, 2, 3, 4, 5)
@@ -22,13 +21,12 @@ auto_fill_data_file = 'rem.rm'
 private_key_file = 'priv_key.PEM'
 
 
-def exception_handler(e, connect, cursor):
+def exception_handler(connect, cursor):
     try:
         cursor.close()
         connect.close()
-        print(e)
-    except Exception as e:
-        print(e)
+    except Exception:
+        pass
 
 
 def pg_connect():
@@ -41,8 +39,8 @@ def pg_connect():
             password="45be3b8ccf0ce93d0e142ec546edaa8a067370f5c050b92b4c181730fb2c9814")
         cur = con.cursor()
         return con, cur
-    except Exception as e:
-        print(e)
+    except Exception:
+        pass
 
 
 def show_popup():
@@ -86,7 +84,7 @@ def check_password(cursor, log, pas):
     except IndexError:
         return "None"
     except Exception as e:
-        print(e)
+        pass
 
 
 def get_id(cursor):
@@ -96,7 +94,7 @@ def get_id(cursor):
         res = cursor.fetchall()
         return res[0][0]
     except Exception as e:
-        print(e)
+        pass
 
 
 def get_user_id(user, cursor):
@@ -107,7 +105,7 @@ def get_user_id(user, cursor):
     except IndexError:
         return None
     except Exception as e:
-        print(e)
+        pass
 
 
 def get_user_nickname(user, cursor):
@@ -118,7 +116,7 @@ def get_user_nickname(user, cursor):
     except IndexError:
         return None
     except Exception as e:
-        print(e)
+        pass
 
 
 def get_private_key():
@@ -139,8 +137,8 @@ def regenerate_keys():
         connect.commit()
         cursor.close()
         connect.close()
-    except Exception as e:
-        exception_handler(e, connect, cursor)
+    except Exception:
+        exception_handler(connect, cursor)
 
 
 def keys_generation():
@@ -152,8 +150,8 @@ def keys_generation():
             file.write(privkey.save_pkcs1().decode('ascii'))
         private_key = privkey
         return pubkey
-    except Exception as e:
-        print(e)
+    except Exception:
+        pass
 
 
 def login(log, pas):
@@ -182,8 +180,8 @@ def login(log, pas):
         cursor.close()
         connect.close()
         return True
-    except Exception as e:
-        exception_handler(e, connect, cursor)
+    except Exception:
+        exception_handler(connect, cursor)
 
 
 def get_message(list_box):
@@ -196,14 +194,13 @@ def get_message(list_box):
         connect.commit()
         for i in res:
             decrypt_msg = decrypt(i[2])
-            print(decrypt_msg)
             nickname = get_user_nickname(i[0], cursor)
             content = '\n{0}: {1}'.format(nickname, decrypt_msg)
             list_box.text += content
         cursor.close()
         connect.close()
     except Exception as e:
-        exception_handler(e, connect, cursor)
+        exception_handler(connect, cursor)
 
 
 def send_message(to_id, msg):
@@ -230,8 +227,8 @@ def send_message(to_id, msg):
         connect.commit()
         cursor.close()
         connect.close()
-    except Exception as e:
-        exception_handler(e, connect, cursor)
+    except Exception:
+        exception_handler(connect, cursor)
 
 
 def encrypt(msg: str, pubkey):
@@ -241,8 +238,8 @@ def encrypt(msg: str, pubkey):
         encrypt_message = rsa.encrypt(msg.encode('utf-8'), pubkey)
         encrypt_message = encrypt_message
         return psycopg2.Binary(encrypt_message)
-    except Exception as e:
-        print(e)
+    except Exception:
+        pass
 
 
 def decrypt(msg: bytes):
@@ -251,7 +248,7 @@ def decrypt(msg: bytes):
         decrypted_message = rsa.decrypt(msg, private_key)
         return decrypted_message.decode('utf-8')
     except Exception as e:
-        print(e)
+        pass
 
 
 class DatabaseChat(App):
