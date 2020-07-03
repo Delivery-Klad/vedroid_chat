@@ -3,11 +3,23 @@ from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.anchorlayout import AnchorLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.popup import Popup
 from kivy.config import Config
+from kivy.uix.label import Label
+import os
+import rsa
+import psycopg2
+import bcrypt
 
 Config.set('graphics', 'resizable', 1)
-# Config.set('graphics', 'width', 300)
-# Config.set('graphics', 'height', 600)
+Config.set('graphics', 'width', 300)
+Config.set('graphics', 'height', 600)
+user_login = ''
+user_id = ''
+private_key = rsa.PrivateKey(1, 2, 3, 4, 5)
+auto_fill_data_file = 'rem.rm'
+private_key_file = 'priv_key.PEM'
 
 
 class DatabaseChat(App):
