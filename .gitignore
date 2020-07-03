@@ -8,7 +8,6 @@ builder.py
 
 # Distribution / packaging
 .Python
-*.PEM
 *.rm
 build/
 /build/
