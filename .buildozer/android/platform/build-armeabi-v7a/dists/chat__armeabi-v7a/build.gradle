@@ -29,8 +29,8 @@ android {
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 27
-        versionCode 7215
-        versionName '0.5'
+        versionCode 7216
+        versionName '0.6'
     }
 
 	packagingOptions {

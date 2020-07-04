@@ -4,8 +4,8 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
       package="org.chat.chat"
-      android:versionCode="7215"
-      android:versionName="0.5"
+      android:versionCode="7216"
+      android:versionName="0.6"
       android:installLocation="auto">
 
     <supports-screens
