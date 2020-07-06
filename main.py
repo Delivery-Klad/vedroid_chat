@@ -20,6 +20,256 @@ auto_fill_data_file = 'rem.rm'
 private_key_file = 'priv_key.PEM'
 
 
+def exception_handler(e, connect, cursor):
+    try:
+        cursor.close()
+        connect.close()
+        print(e)
+    except Exception as e:
+        print(e)
+
+
+def pg_connect():
+    try:
+        con = pymysql.connect(
+            host="sql7.freemysqlhosting.net",
+            user="sql7353051",
+            password="gyJUJsfxt8",
+            db="sql7353051",
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor)
+        cur = con.cursor()
+        return con, cur
+    except Exception as e:
+        print(e)
+
+
+def create_tables():
+    connect, cursor = pg_connect()
+    try:
+        cursor.execute('CREATE TABLE IF NOT EXISTS users(id INTEGER,'
+                       'login TEXT,'
+                       'password TEXT,'
+                       'pubkey TEXT)')
+        cursor.execute('CREATE TABLE IF NOT EXISTS messages(from_id INTEGER,'
+                       'to_id INTEGER,'
+                       'message BLOB)')
+        connect.commit()
+        cursor.close()
+        connect.close()
+    except Exception as e:
+        exception_handler(e, connect, cursor)
+
+
+def show_popup():
+    layout = GridLayout(cols=1, padding=10)
+    popupLabel = Label(text="Input error")
+    closeButton = Button(text="OK")
+    layout.add_widget(popupLabel)
+    layout.add_widget(closeButton)
+    popup = Popup(title='Error', content=layout, size_hint=(None, None), size=(250, 150))
+    closeButton.bind(on_press=popup.dismiss)
+    return popup
+
+
+def check_input(password: str, log: str):
+    popup = show_popup()
+    if len(log) < 5:
+        popup.open()
+        return False
+    if len(password) < 8:
+        popup.open()
+        return False
+    for i in password:
+        if ord(i) < 45 or ord(i) > 122:
+            popup.open()
+            return False
+    for i in log:
+        if ord(i) < 45 or ord(i) > 122:
+            popup.open()
+            return False
+    return True
+
+
+def check_password(cursor, log, pas):
+    try:
+        cursor.execute("SELECT password FROM users WHERE login='{0}'".format(log))
+        res = cursor.fetchall()[0][0]
+        hashed_password = res.encode('utf-8')
+        if bcrypt.checkpw(pas, hashed_password):
+            return "True"
+        return "False"
+    except IndexError:
+        return "None"
+    except Exception as e:
+        print(e)
+
+
+def get_id(cursor):
+    global user_login
+    try:
+        cursor.execute("SELECT id FROM users WHERE login='{0}'".format(user_login))
+        res = cursor.fetchall()
+        return res[0][0]
+    except Exception as e:
+        print(e)
+
+
+def get_user_id(user, cursor):
+    try:
+        cursor.execute("SELECT id FROM users WHERE login='{0}'".format(user))
+        res = cursor.fetchall()
+        return res[0][0]
+    except IndexError:
+        return None
+    except Exception as e:
+        print(e)
+
+
+def get_user_nickname(user, cursor):
+    try:
+        cursor.execute("SELECT login FROM users WHERE id={0}".format(user))
+        res = cursor.fetchall()
+        return res[0][0]
+    except IndexError:
+        return None
+    except Exception as e:
+        print(e)
+
+
+def get_private_key():
+    try:
+        global private_key
+        with open(private_key_file, 'rb') as file:
+            data = file.read()
+        private_key = rsa.PrivateKey.load_pkcs1(data)
+    except FileNotFoundError:
+        pass
+
+
+def regenerate_keys():
+    global user_id
+    connect, cursor = pg_connect()
+    try:
+        cursor.execute("UPDATE users SET pubkey='{0}' WHERE id={1}".format(keys_generation(), user_id))
+        connect.commit()
+        cursor.close()
+        connect.close()
+    except Exception as e:
+        exception_handler(e, connect, cursor)
+
+
+def keys_generation():
+    global private_key
+    try:
+        (pubkey, privkey) = rsa.newkeys(512)
+        pubkey = str(pubkey)[10:-1]
+        with open(private_key_file, 'w') as file:
+            file.write(privkey.save_pkcs1().decode('ascii'))
+        private_key = privkey
+        return pubkey
+    except Exception as e:
+        print(e)
+
+
+def login(log, pas):
+    global user_login
+    global user_id
+    connect, cursor = pg_connect()
+    popup = show_popup()
+    try:
+        if len(log) == 0 or len(pas) == 0:
+            popup.open()
+            return
+        res = check_password(cursor, log, pas.encode('utf-8'))
+        if res == "False":
+            cursor.close()
+            connect.close()
+            popup.open()
+            return
+        elif res == "None":
+            cursor.close()
+            connect.close()
+            popup.open()
+            return
+        user_login = log
+        user_id = get_id(cursor)
+        get_private_key()
+        cursor.close()
+        connect.close()
+        return True
+    except Exception as e:
+        exception_handler(e, connect, cursor)
+
+
+def get_message(list_box):
+    global user_id
+    connect, cursor = pg_connect()
+    try:
+        cursor.execute("SELECT * FROM messages WHERE to_id={0}".format(user_id))
+        res = cursor.fetchall()
+        cursor.execute("DELETE FROM messages WHERE to_id={0}".format(user_id))
+        connect.commit()
+        for i in res:
+            decrypt_msg = decrypt(i[2])
+            print(decrypt_msg)
+            nickname = get_user_nickname(i[0], cursor)
+            content = '\n{0}: {1}'.format(nickname, decrypt_msg)
+            list_box.text += content
+        cursor.close()
+        connect.close()
+    except Exception as e:
+        exception_handler(e, connect, cursor)
+
+
+def send_message(to_id, msg):
+    global user_id
+    connect, cursor = pg_connect()
+    popup = show_popup()
+    try:
+        if len(to_id) == 0 or len(msg) == 0:
+            popup.open()
+            cursor.close()
+            connect.close()
+            return
+        for i in msg:
+            if ord(i) < 32 or ord(i) > 1366:
+                popup.open()
+                cursor.close()
+                connect.close()
+                return
+        to_id = int(to_id)
+        cursor.execute("SELECT pubkey FROM users WHERE id={0}".format(to_id))
+        res = cursor.fetchall()[0][0]
+        encrypt_msg = encrypt(msg, res)
+        cursor.execute("INSERT INTO messages VALUES ({0}, {1}, {2})".format(user_id, to_id, encrypt_msg))
+        connect.commit()
+        cursor.close()
+        connect.close()
+    except Exception as e:
+        exception_handler(e, connect, cursor)
+
+
+def encrypt(msg: str, pubkey):
+    try:
+        pubkey = pubkey.split(', ')
+        pubkey = rsa.PublicKey(int(pubkey[0]), int(pubkey[1]))
+        encrypt_message = rsa.encrypt(msg.encode('utf-8'), pubkey)
+        encrypt_message = encrypt_message
+        return pymysql.Binary(encrypt_message)
+    except Exception as e:
+        print(e)
+
+
+def decrypt(msg: bytes):
+    global private_key
+    try:
+        decrypted_message = rsa.decrypt(msg, private_key)
+        return decrypted_message.decode('utf-8')
+    except Exception as e:
+        print(e)
+
+
 class DatabaseChat(App):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -34,6 +284,8 @@ class DatabaseChat(App):
         self.msg_box = TextInput()
 
     def login(self, instance):
+        # create_tables()
+        print(pg_connect())
         self.al.remove_widget(self.bl)
         self.al.add_widget(self.msg_box)
         self.al.add_widget(self.bl2)
