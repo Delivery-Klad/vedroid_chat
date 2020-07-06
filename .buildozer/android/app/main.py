@@ -7,7 +7,7 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.popup import Popup
 from kivy.config import Config
 from kivy.uix.label import Label
-import pg8000
+import pymysql.cursors
 import bcrypt
 import rsa
 
