@@ -284,26 +284,33 @@ class DatabaseChat(App):
         self.msg_box = TextInput()
 
     def login(self, instance):
-        # create_tables()
-        print(pg_connect())
-        self.al.remove_widget(self.bl)
-        self.al.add_widget(self.msg_box)
-        self.al.add_widget(self.bl2)
-        return self.al
+        if login(self.entry_log.text, self.entry_pass.text):
+            self.al.remove_widget(self.bl)
+            self.al.add_widget(self.msg_box)
+            self.al.add_widget(self.bl2)
+            get_message(self.msg_box)
+            return self.al
+
+    def register(self, instance):
+        pass
 
     def send_message(self, instance):
-        self.entry_msg.text += '\n' + self.entry_msg.text
+
+        send_message(self.entry_id.text, self.entry_msg.text)
+        self.entry_msg.text = ''
         # self.msg_box.text += '\n' + self.entry_msg.text
 
     def build(self):
         self.bl.add_widget(self.entry_log, self.entry_pass)
         self.bl.add_widget(self.entry_pass)
         self.bl.add_widget(Button(text='LOGIN', on_press=self.login))
+        self.bl.add_widget(Button(text='REGISTER', on_press=self.register))
         self.al.add_widget(self.bl)
         self.bl_buttons.add_widget(self.entry_id)
         self.bl_buttons.add_widget(self.entry_msg)
         self.bl2.add_widget(self.bl_buttons)
         self.bl2.add_widget(Button(text='SEND', on_press=self.send_message, size_hint=[.999, .05]))
+
         return self.al
 
 
