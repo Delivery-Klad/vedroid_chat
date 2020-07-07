@@ -16,6 +16,7 @@ Config.set('graphics', 'width', 300)
 Config.set('graphics', 'height', 600)
 user_login = ''
 user_id = ''
+private_key = rsa.PrivateKey(1, 2, 3, 4, 5)
 auto_fill_data_file = 'rem.rm'
 private_key_file = 'priv_key.PEM'
 
@@ -47,6 +48,7 @@ def pg_connect():
 def create_tables():
     connect, cursor = pg_connect()
     try:
+        cursor.execute('DROP TABLE users')
         cursor.execute('CREATE TABLE IF NOT EXISTS users(id INTEGER,'
                        'login TEXT,'
                        'password TEXT,'
@@ -94,7 +96,8 @@ def check_input(password: str, log: str):
 def check_password(cursor, log, pas):
     try:
         cursor.execute("SELECT password FROM users WHERE login='{0}'".format(log))
-        res = cursor.fetchall()[0][0]
+        res = cursor.fetchone()
+        res = res["password"]
         hashed_password = res.encode('utf-8')
         if bcrypt.checkpw(pas, hashed_password):
             return "True"
@@ -109,8 +112,8 @@ def get_id(cursor):
     global user_login
     try:
         cursor.execute("SELECT id FROM users WHERE login='{0}'".format(user_login))
-        res = cursor.fetchall()
-        return res[0][0]
+        res = cursor.fetchone()
+        return res["id"]
     except Exception as e:
         print(e)
 
@@ -118,8 +121,8 @@ def get_id(cursor):
 def get_user_id(user, cursor):
     try:
         cursor.execute("SELECT id FROM users WHERE login='{0}'".format(user))
-        res = cursor.fetchall()
-        return res[0][0]
+        res = cursor.fetchone()
+        return res["id"]
     except IndexError:
         return None
     except Exception as e:
@@ -129,8 +132,8 @@ def get_user_id(user, cursor):
 def get_user_nickname(user, cursor):
     try:
         cursor.execute("SELECT login FROM users WHERE id={0}".format(user))
-        res = cursor.fetchall()
-        return res[0][0]
+        res = cursor.fetchone()
+        return res["login"]
     except IndexError:
         return None
     except Exception as e:
@@ -180,24 +183,69 @@ def login(log, pas):
     try:
         if len(log) == 0 or len(pas) == 0:
             popup.open()
-            return
+            return False
         res = check_password(cursor, log, pas.encode('utf-8'))
         if res == "False":
             cursor.close()
             connect.close()
             popup.open()
-            return
+            return False
         elif res == "None":
             cursor.close()
             connect.close()
             popup.open()
-            return
+            return False
         user_login = log
         user_id = get_id(cursor)
+        print(str(user_id) + "id")
         get_private_key()
         cursor.close()
         connect.close()
         return True
+    except Exception as e:
+        print('error-----')
+        exception_handler(e, connect, cursor)
+
+
+def register(log, pas):
+    connect, cursor = pg_connect()
+    try:
+        if len(log) == 0 or len(pas) == 0:
+            show_popup()
+            cursor.close()
+            connect.close()
+            return
+        if not check_input(pas, log):
+            cursor.close()
+            connect.close()
+            return
+        try:
+            cursor.execute("SELECT id FROM users WHERE login = '{0}'".format(str(log)))
+            res = cursor.fetchone()
+            tmp = int(res["id"])
+            res = tmp
+            if res != 0:
+                show_popup()
+                cursor.close()
+                connect.close()
+                return
+        except Exception as e:
+            print(e)
+        hashed_pass = bcrypt.hashpw(pas.encode('utf-8'), bcrypt.gensalt())
+        hashed_pass = str(hashed_pass)[2:-1]
+        cursor.execute("SELECT MAX(id) FROM users")
+        max_id = cursor.fetchone()
+        tmp = max_id["MAX(id)"]
+        max_id = tmp
+        if max_id is not None:
+            max_id += 1
+        else:
+            max_id = 0
+        cursor.execute("INSERT INTO users VALUES ({0}, '{1}', '{2}', '{3}')".format(max_id, log,
+                                                                                    hashed_pass, keys_generation()))
+        connect.commit()
+        cursor.close()
+        connect.close()
     except Exception as e:
         exception_handler(e, connect, cursor)
 
@@ -240,9 +288,10 @@ def send_message(to_id, msg):
                 return
         to_id = int(to_id)
         cursor.execute("SELECT pubkey FROM users WHERE id={0}".format(to_id))
-        res = cursor.fetchall()[0][0]
+        res = cursor.fetchone()
+        res = res["pubkey"]
         encrypt_msg = encrypt(msg, res)
-        cursor.execute("INSERT INTO messages VALUES ({0}, {1}, {2})".format(user_id, to_id, encrypt_msg))
+        cursor.execute('''INSERT INTO messages VALUES ({0}, {1}, {2})'''.format(user_id, to_id, encrypt_msg))
         connect.commit()
         cursor.close()
         connect.close()
@@ -276,7 +325,7 @@ class DatabaseChat(App):
         self.entry_log = TextInput()
         self.entry_pass = TextInput(password=True)
         self.al = AnchorLayout()
-        self.bl = BoxLayout(orientation='vertical', size_hint=[.7, .15])
+        self.bl = BoxLayout(orientation='vertical', size_hint=[.7, .2])
         self.bl2 = BoxLayout(orientation='vertical')
         self.bl_buttons = BoxLayout(orientation='horizontal')
         self.entry_msg = TextInput(size_hint=[.1, .05])
@@ -288,14 +337,16 @@ class DatabaseChat(App):
             self.al.remove_widget(self.bl)
             self.al.add_widget(self.msg_box)
             self.al.add_widget(self.bl2)
+            print(6)
             get_message(self.msg_box)
+            print(7)
             return self.al
 
     def register(self, instance):
-        pass
+        # create_tables()
+        register(self.entry_log.text, self.entry_pass.text)
 
     def send_message(self, instance):
-
         send_message(self.entry_id.text, self.entry_msg.text)
         self.entry_msg.text = ''
         # self.msg_box.text += '\n' + self.entry_msg.text
