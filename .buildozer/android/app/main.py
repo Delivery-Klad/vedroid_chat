@@ -11,6 +11,11 @@ import pymysql.cursors
 import bcrypt
 import rsa
 
+from android.permissions import request_permissions, Permission
+request_permissions([Permission.WRITE_EXTERNAL_STORAGE])
+request_permissions([Permission.READ_EXTERNAL_STORAGE])
+request_permissions([Permission.INTERNET])
+
 Config.set('graphics', 'resizable', 1)
 Config.set('graphics', 'width', 300)
 Config.set('graphics', 'height', 600)
@@ -37,7 +42,6 @@ def pg_connect():
             user="sql7353051",
             password="gyJUJsfxt8",
             db="sql7353051",
-            charset='utf8mb4',
             cursorclass=pymysql.cursors.DictCursor)
         cur = con.cursor()
         return con, cur
@@ -48,7 +52,7 @@ def pg_connect():
 def create_tables():
     connect, cursor = pg_connect()
     try:
-        cursor.execute('DROP TABLE users')
+        cursor.execute('DROP TABLE messages')
         cursor.execute('CREATE TABLE IF NOT EXISTS users(id INTEGER,'
                        'login TEXT,'
                        'password TEXT,'
@@ -258,10 +262,12 @@ def get_message(list_box):
         res = cursor.fetchall()
         cursor.execute("DELETE FROM messages WHERE to_id={0}".format(user_id))
         connect.commit()
+        print(res)
         for i in res:
-            decrypt_msg = decrypt(i[2])
+            print(type(i["message"]))
+            decrypt_msg = decrypt(i["message"])
             print(decrypt_msg)
-            nickname = get_user_nickname(i[0], cursor)
+            nickname = get_user_nickname(i["from_id"], cursor)
             content = '\n{0}: {1}'.format(nickname, decrypt_msg)
             list_box.text += content
         cursor.close()
@@ -291,7 +297,9 @@ def send_message(to_id, msg):
         res = cursor.fetchone()
         res = res["pubkey"]
         encrypt_msg = encrypt(msg, res)
-        cursor.execute('''INSERT INTO messages VALUES ({0}, {1}, {2})'''.format(user_id, to_id, encrypt_msg))
+        print(encrypt_msg)
+        print(decrypt(encrypt_msg))
+        cursor.execute("INSERT INTO messages VALUES (%s,%s,_binary %s)", (user_id, to_id, encrypt_msg))
         connect.commit()
         cursor.close()
         connect.close()
@@ -305,7 +313,7 @@ def encrypt(msg: str, pubkey):
         pubkey = rsa.PublicKey(int(pubkey[0]), int(pubkey[1]))
         encrypt_message = rsa.encrypt(msg.encode('utf-8'), pubkey)
         encrypt_message = encrypt_message
-        return pymysql.Binary(encrypt_message)
+        return encrypt_message
     except Exception as e:
         print(e)
 
@@ -333,13 +341,12 @@ class DatabaseChat(App):
         self.msg_box = TextInput()
 
     def login(self, instance):
+        # regenerate_keys()
         if login(self.entry_log.text, self.entry_pass.text):
             self.al.remove_widget(self.bl)
             self.al.add_widget(self.msg_box)
             self.al.add_widget(self.bl2)
-            print(6)
             get_message(self.msg_box)
-            print(7)
             return self.al
 
     def register(self, instance):
