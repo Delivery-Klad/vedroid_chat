@@ -1,3 +1,3 @@
 # vedroid_chat
 
-заменить psycopg2 на pg8000
+заменить psycopg2 на pg8000 (upd не помогло)
